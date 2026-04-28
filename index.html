@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>טוען אירוע...</title>
+<link rel="icon" href="path_to_original_image-modified.png" type="image/png">
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  background: #1a1a2e;
+  color: #eee;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  color: #ff6b6b;
+}
+
+h2 {
+  text-align: center;
+  color: #aaa;
+  font-weight: normal;
+}
+
+h3 {
+  color: #e94560;
+  margin-top: 20px;
+  margin-bottom: 6px;
+  font-size: 1em;
+  border-bottom: 1px solid #e94560;
+  padding-bottom: 4px;
+}
+
+.area {
+  margin-top: 20px;
+}
+
+ul {
+  column-count: 3;
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  background: #16213e;
+  margin: 4px;
+  padding: 6px;
+  border-right: 3px solid #e94560;
+}
+
+@media (max-width: 600px) {
+  ul { column-count: 2; }
+}
+</style>
+</head>
+
+<body>
+
+<h1>טוען...</h1>
+
+<input id="search" type="text" placeholder="🔍 חיפוש יישוב..." oninput="filterCities()" style="
+  display: none;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  background: #16213e;
+  border: 1px solid #e94560;
+  border-radius: 6px;
+  color: #eee;
+  font-size: 1em;
+  box-sizing: border-box;
+">
+
+<div id="content"></div>
+
+<script>
+function filterCities() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  document.querySelectorAll("li").forEach(li => {
+    li.style.display = li.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+}
+
+function showSearchIfNeeded() {
+  const count = document.querySelectorAll("li").length;
+  if (count > 20) {
+    document.getElementById("search").style.display = "block";
+  }
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBvJJdhetPhv1VANDRu7V9exodQG806SHQ",
+  projectId: "radars-727ea"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+if (!id) {
+  document.body.innerHTML = "<h1>❌ אין מזהה אירוע</h1>";
+  throw new Error("Missing ID");
+}
+
+db.collection("alerts_cat10").doc(id).get()
+  .then(doc => {
+    if (!doc.exists) {
+      document.body.innerHTML = "<h1>❌ אירוע לא נמצא</h1>";
+      return;
+    }
+
+    const data = doc.data();
+
+    document.querySelector("h1").innerText = data.title || "🚨 התרעה";
+    document.title = data.title || "🚨 התרעה";
+
+    let html = `<h2>${data.timestamp || ""}</h2>`;
+
+    const byArea = data.cities_by_area;
+
+    if (byArea && Object.keys(byArea).length > 0) {
+      for (const [area, cities] of Object.entries(byArea)) {
+        html += `<div class="area">`;
+        if (area && area !== "") {
+          html += `<h3>${area}</h3>`;
+        }
+        html += `<ul>`;
+        cities.forEach(city => {
+          html += `<li>${city}</li>`;
+        });
+        html += `</ul></div>`;
+      }
+    } else {
+      html += `<div class="area"><ul>`;
+      (data.cities || []).forEach(city => {
+        html += `<li>${city}</li>`;
+      });
+      html += `</ul></div>`;
+    }
+
+    document.getElementById("content").innerHTML = html;
+    showSearchIfNeeded();
+  })
+  .catch(err => {
+    console.error(err);
+    document.body.innerHTML = "<h1>❌ שגיאה בטעינת נתונים</h1>";
+  });
+</script>
+
+</body>
+</html>
